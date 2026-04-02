@@ -1,0 +1,131 @@
+# ExecutableItems Feature Checklist
+
+## ✅ Already Implemented
+- Basic item creation (material, name, lore, custom_model_data, unbreakable, flags)
+- RIGHT_CLICK activator
+- LEFT_CLICK activator
+- SHIFT_RIGHT_CLICK activator
+- SHIFT_LEFT_CLICK activator
+- HIT activator
+- CONSUME activator
+- DROP activator
+- MESSAGE action
+- ACTIONBAR action
+- TITLE action
+- SOUND action
+- PARTICLE action
+- COMMAND action
+- DAMAGE action (buggy — causes crash in loops)
+- HEAL action
+- POTION_EFFECT action
+- GIVE_ITEM action
+- REMOVE_ITEM action
+- TELEPORT action
+- SPAWN_ENTITY action
+- PROJECTILE action
+- Cooldown system (per item, per player)
+- Cooldown message
+- Basic conditions (permission)
+- NBT-based item recognition
+- /ci give, /ci list, /ci info, /ci reload, /ci debug commands
+- Database support (SQLite/MySQL) for cooldown persistence
+
+## ❌ Missing — Activators
+- RECEIVE_HIT activator (no listener registered)
+- BREAK_BLOCK activator (no listener registered)
+- PLACE_BLOCK activator
+- KILL_ENTITY activator
+- KILL_PLAYER activator
+- FISH activator
+- SHOOT_BOW activator
+- ARROW_HIT activator
+- PICKUP_ITEM activator
+- INVENTORY_CLICK activator
+- SNEAK activator (toggle sneak)
+- JUMP activator
+- SPRINT activator
+- SWAP_HAND activator (F key)
+- RESPAWN activator
+- LOGIN activator
+- LOGOUT activator
+- PERIODIC activator (fires every X ticks while held)
+- ALL_CLICK activator (fires on any click)
+- HELD_ITEM_CHANGE activator (switch hotbar slot to/from item)
+- ARMOR_EQUIP activator
+- ARMOR_UNEQUIP activator
+
+## ❌ Missing — Actions
+- LAUNCH_PROJECTILE action (custom projectile with trail)
+- SET_BLOCK action
+- EXPLOSION action
+- LIGHTNING action
+- FIREWORK action
+- VELOCITY action (knock target/self back)
+- SWING_HAND action
+- DELAY action (wait X ticks before next action)
+- LOOP action (repeat actions X times)
+- RANDOM_ACTION action (pick random action from list)
+- SET_VARIABLE action (global/player variables)
+- MATH action (variable arithmetic)
+- PLAY_ANIMATION action
+- DROP_ITEM action (drop custom item at location)
+- CONSUME_DURABILITY action
+- REPAIR action
+- SET_ON_FIRE action (target or self)
+- FREEZE action (powder snow freeze effect)
+- PULL / PUSH action (attract or repel nearby entities)
+
+## ❌ Missing — Conditions
+- Health condition (above/below X hearts)
+- Food level condition
+- Experience level condition
+- World condition
+- Biome condition
+- Time of day condition
+- Weather condition
+- Is sneaking condition
+- Is sprinting condition
+- Is on ground condition
+- Is flying condition
+- Is in water condition
+- Holding item in offhand condition
+- Wearing armor condition
+- Nearby entity condition
+- Placeholder condition (PlaceholderAPI support)
+- Variable condition (check variable value)
+- Chance condition (X% probability)
+- Cooldown condition (check if another activator is on cooldown)
+
+## ❌ Missing — Item Features
+- Attribute modifiers (attack damage, attack speed, armor, etc.)
+- Enchantment support in YAML
+- Per-activator durability consumption
+- Max use counter (item breaks/disappears after N uses)
+- Item glow effect (without enchantment)
+- Head texture support (custom player head items)
+- Item NBT tag editor
+- Restricted worlds (item disabled in certain worlds)
+- Restricted gamemodes
+- Item level / experience system
+- Upgrade system (item gets stronger over time)
+
+## ❌ Missing — General / System Features
+- PlaceholderAPI integration ({player}, {target}, {world}, {x}, {y}, {z}, etc.)
+- Variable system (global variables, per-player variables, per-item variables)
+- {target} placeholder in actions (name, uuid, health, etc.)
+- Particle at TARGET location (currently only spawns at player)
+- DAMAGE action loop guard (currently crashes server)
+- Per-world item disabling
+- Item versioning / migration system
+- GUI editor (/ci edit <id> opens inventory GUI to edit item)
+- /ci give with drop-on-full-inventory support
+- Recipe support (craft custom items via crafting table)
+- Smithing table support
+- Anvil rename prevention
+- Prevent dropping / prevent placing
+- Metrics / bStats integration
+- Update checker
+- Auto item save (save items back to YAML from in-game edits)
+- Multi-language / messages.yml support
+- Permission per item (restrict who can use each item)
+- Permission per activator (restrict specific abilities)
