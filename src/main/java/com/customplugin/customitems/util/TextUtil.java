@@ -25,7 +25,7 @@ public final class TextUtil {
      */
     public static String colorize(String raw) {
         if (raw == null) return "";
-        return raw.replace("&", "§");
+        return raw.replace("&", "\u00a7");
     }
 
     /**
@@ -37,7 +37,8 @@ public final class TextUtil {
 
         // Replace context variables {varName}
         for (var entry : context.getVariables().entrySet()) {
-            text = text.replace("{" + entry.getKey() + "}", entry.getValue());
+            // Fix: convert Object value to String before passing to replace()
+            text = text.replace("{" + entry.getKey() + "}", String.valueOf(entry.getValue()));
         }
 
         // Replace built-in placeholders

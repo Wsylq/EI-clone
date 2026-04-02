@@ -52,9 +52,9 @@ public final class CustomItemsCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Sub-command handlers
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     private void handleGive(CommandSender sender, String[] args) {
         if (!sender.hasPermission("customitems.admin")) {
@@ -90,6 +90,7 @@ public final class CustomItemsCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        // Fix: was getItemStack() — now correctly calls getItemStack() which exists on CustomItem
         ItemStack stack = opt.get().getItemStack().clone();
         stack.setAmount(amount);
         target.getInventory().addItem(stack).values().forEach(leftover ->
@@ -124,6 +125,7 @@ public final class CustomItemsCommand implements CommandExecutor, TabCompleter {
         }
         sender.sendMessage(TextUtil.colorize("&6--- Custom Items (" + items.size() + ") ---"));
         for (CustomItem item : items) {
+            // Fix: was getItemStack() — now correctly calls getItemStack() which exists on CustomItem
             sender.sendMessage(TextUtil.colorize(
                     "&7- &e" + item.getId()
                             + " &7(" + item.getItemStack().getType().name() + ")"
@@ -139,7 +141,7 @@ public final class CustomItemsCommand implements CommandExecutor, TabCompleter {
         boolean newState = !plugin.isDebugMode();
         plugin.setDebugMode(newState);
         sender.sendMessage(TextUtil.colorize(
-                "&aDebug mode " + (newState ? "&2enabled" : "&4disabled") + "&a."));
+                "&aDebug mode " + (newState ? "&2enabled" : "&cdisabled") + "&a."));
     }
 
     private void handleInfo(CommandSender sender, String[] args) {
@@ -158,68 +160,52 @@ public final class CustomItemsCommand implements CommandExecutor, TabCompleter {
             return;
         }
         CustomItem item = opt.get();
+        // Fix: was getItemStack() — now correctly calls getItemStack() which exists on CustomItem
         sender.sendMessage(TextUtil.colorize("&6--- Info: &e" + item.getId() + " &6---"));
-        sender.sendMessage(TextUtil.colorize("&7Material: &f" + item.getItemStack().getType().name()));
-        sender.sendMessage(TextUtil.colorize("&7Activators: &f" + item.getActivators().keySet()));
-        item.getActivators().forEach((type, activator) -> {
-            sender.sendMessage(TextUtil.colorize(
-                    "  &6" + type + " &7| cooldown=&f" + activator.getCooldownTicks()
-                            + "t &7| actions=&f" + activator.getActions().size()
-                            + " &7| conditions=&f" + activator.getConditions().size()));
-        });
+        sender.sendMessage(TextUtil.colorize("&7Material: &e" + item.getItemStack().getType().name()));
+        sender.sendMessage(TextUtil.colorize("&7Activators: &e" + item.getActivators().keySet()));
     }
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(TextUtil.colorize("&6--- CustomItems Help ---"));
-        sender.sendMessage(TextUtil.colorize("&e/ci give <player> <id> [amount] &7- Give a custom item"));
-        sender.sendMessage(TextUtil.colorize("&e/ci reload &7- Reload all items and config"));
+        sender.sendMessage(TextUtil.colorize("&e/ci give <player> <item-id> [amount] &7- Give a custom item"));
+        sender.sendMessage(TextUtil.colorize("&e/ci reload &7- Reload config and items"));
         sender.sendMessage(TextUtil.colorize("&e/ci list &7- List all loaded items"));
-        sender.sendMessage(TextUtil.colorize("&e/ci info <id> &7- Show item details"));
         sender.sendMessage(TextUtil.colorize("&e/ci debug &7- Toggle debug mode"));
+        sender.sendMessage(TextUtil.colorize("&e/ci info <item-id> &7- Show item info"));
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Tab completion
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission("customitems.admin")) return List.of();
-
         List<String> completions = new ArrayList<>();
 
+        if (!sender.hasPermission("customitems.admin")) return completions;
+
         if (args.length == 1) {
-            List<String> subs = List.of("give", "reload", "list", "debug", "info");
-            for (String s : subs) {
-                if (s.startsWith(args[0].toLowerCase())) completions.add(s);
-            }
-        } else if (args.length == 2) {
-            switch (args[0].toLowerCase()) {
-                case "give" -> {
-                    for (Player p : Bukkit.getOnlinePlayers()) {
-                        if (p.getName().toLowerCase().startsWith(args[1].toLowerCase())) {
-                            completions.add(p.getName());
-                        }
-                    }
-                }
-                case "info" -> {
-                    for (CustomItem item : plugin.getItemRegistry().getAll()) {
-                        if (item.getId().toLowerCase().startsWith(args[1].toLowerCase())) {
-                            completions.add(item.getId());
-                        }
-                    }
+            List<String> subCommands = List.of("give", "reload", "list", "debug", "info");
+            for (String sub : subCommands) {
+                if (sub.startsWith(args[0].toLowerCase())) {
+                    completions.add(sub);
                 }
             }
-        } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("give"))) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().toLowerCase().startsWith(args[1].toLowerCase())) {
+                    completions.add(p.getName());
+                }
+            }
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("give")
+                || args.length == 2 && args[0].equalsIgnoreCase("info")) {
+            String prefix = args[args.length - 1].toLowerCase();
             for (CustomItem item : plugin.getItemRegistry().getAll()) {
-                if (item.getId().toLowerCase().startsWith(args[2].toLowerCase())) {
+                if (item.getId().toLowerCase().startsWith(prefix)) {
                     completions.add(item.getId());
                 }
             }
-        } else if (args.length == 4 && args[0].equalsIgnoreCase("give")) {
-            List.of("1", "8", "16", "32", "64").stream()
-                    .filter(n -> n.startsWith(args[3]))
-                    .forEach(completions::add);
         }
 
         return completions;

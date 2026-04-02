@@ -9,7 +9,7 @@ import com.customplugin.customitems.model.ActionDefinition;
 import com.customplugin.customitems.model.Activator;
 import com.customplugin.customitems.model.CustomItem;
 import com.customplugin.customitems.model.ExecutionContext;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import com.customplugin.customitems.util.TextUtil;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -38,9 +38,9 @@ public final class ExecutionEngine {
         this.cooldownManager = plugin.getCooldownManager();
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Pipeline entry point
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     /**
      * Runs the full pipeline for a given item + activator combination.
@@ -87,7 +87,8 @@ public final class ExecutionEngine {
             if (remaining > 0) {
                 String msg = activator.getCooldownMessage()
                         .replace("%remaining%", String.valueOf((int) Math.ceil(remaining / 20.0)));
-                player.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(msg));
+                // Fix: sendMessage(String) — use TextUtil.colorize to translate '&' codes to '§' codes
+                player.sendMessage(TextUtil.colorize(msg));
                 plugin.debugLog("On cooldown: " + remaining + " ticks remaining.");
                 return false;
             }
@@ -101,9 +102,9 @@ public final class ExecutionEngine {
         return true;
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Action chain execution
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     /**
      * Executes a list of actions sequentially.
@@ -129,41 +130,32 @@ public final class ExecutionEngine {
 
             ActionExecutor executor = actionRegistry.getExecutor(def.getType());
             if (executor == null) {
-                plugin.getLogger().warning("[CustomItems] Unknown action type: " + def.getType());
+                plugin.debugLog("Unknown action type: " + def.getType());
                 continue;
             }
 
             try {
                 executor.execute(def, context);
-                plugin.debugLog("Executed action: " + def.getType());
             } catch (Exception e) {
-                plugin.getLogger().warning("[CustomItems] Error executing action "
-                        + def.getType() + ": " + e.getMessage());
+                plugin.getLogger().warning("Action " + def.getType() + " threw an exception: " + e.getMessage());
             }
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // IF block handling
+    // ---------------------------------------------------------------------------
 
     private void handleIf(ActionDefinition def, ExecutionContext context) {
         String condition = def.getString("condition", "");
-        boolean result = conditionEvaluator.evaluate(condition, context);
-        plugin.debugLog("IF condition '" + condition + "' → " + result);
+        boolean passed = conditionEvaluator.evaluate(condition, context);
 
-        if (result) {
-            if (!def.getThenActions().isEmpty()) {
-                executeActions(def.getThenActions(), context);
-            }
-        } else {
-            if (!def.getElseActions().isEmpty()) {
-                executeActions(def.getElseActions(), context);
-            }
+        List<ActionDefinition> branch = passed
+                ? def.getActionList("then")
+                : def.getActionList("else");
+
+        if (branch != null && !branch.isEmpty()) {
+            executeActions(branch, context);
         }
-    }
-
-    public ActionRegistry getActionRegistry() {
-        return actionRegistry;
-    }
-
-    public ConditionEvaluator getConditionEvaluator() {
-        return conditionEvaluator;
     }
 }

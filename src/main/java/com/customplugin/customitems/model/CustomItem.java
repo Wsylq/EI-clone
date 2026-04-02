@@ -30,6 +30,14 @@ public final class CustomItem {
         return baseItem.clone();
     }
 
+    /**
+     * Alias for {@link #getBaseItem()} — returns a clone of the base ItemStack.
+     * Provided for compatibility with code that calls getItemStack().
+     */
+    public ItemStack getItemStack() {
+        return baseItem.clone();
+    }
+
     public Map<String, Activator> getActivators() {
         return activators;
     }
