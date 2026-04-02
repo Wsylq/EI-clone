@@ -3,9 +3,6 @@ package com.customplugin.customitems.config;
 import com.customplugin.customitems.model.ActionDefinition;
 import com.customplugin.customitems.model.Activator;
 import com.customplugin.customitems.model.CustomItem;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
@@ -32,7 +29,7 @@ public final class ItemParser {
 
     /** PDC key used to stamp every custom item stack. */
     public static final String PDC_NAMESPACE = "customitems";
-    public static final String PDC_KEY       = "id";
+    public static final String PDC_KEY = "id";
 
     private static final Pattern DURATION_PATTERN =
             Pattern.compile("^(\\d+)(s|m|h|t)?$", Pattern.CASE_INSENSITIVE);
@@ -104,20 +101,20 @@ public final class ItemParser {
             return null;
         }
 
-        // Name (MiniMessage + legacy color codes)
+        // Name — use legacy color codes via §
         String rawName = sec.getString("name");
         if (rawName != null) {
-            meta.displayName(parseText(rawName));
+            meta.setDisplayName(colorize(rawName));
         }
 
         // Lore
         List<String> rawLore = sec.getStringList("lore");
         if (!rawLore.isEmpty()) {
-            List<Component> loreComponents = new ArrayList<>();
+            List<String> colorizedLore = new ArrayList<>();
             for (String line : rawLore) {
-                loreComponents.add(parseText(line));
+                colorizedLore.add(colorize(line));
             }
-            meta.lore(loreComponents);
+            meta.setLore(colorizedLore);
         }
 
         // Custom model data
@@ -141,7 +138,6 @@ public final class ItemParser {
 
         // Stamp PDC id
         meta.getPersistentDataContainer().set(pdcKey, PersistentDataType.STRING, id);
-
         item.setItemMeta(meta);
         return item;
     }
@@ -162,7 +158,6 @@ public final class ItemParser {
             // Cooldown
             String cooldownRaw = aSec.getString("cooldown", "0s");
             long cooldownTicks = parseDuration(cooldownRaw);
-
             String cooldownMessage = aSec.getString("cooldown_message",
                     "&cYou must wait before using this again!");
 
@@ -244,23 +239,15 @@ public final class ItemParser {
             case "s" -> value * 20L;
             case "m" -> value * 1200L;
             case "h" -> value * 72000L;
-            default -> value;
+            default  -> value;
         };
     }
 
     /**
-     * Parses text with MiniMessage tags and legacy {@code &} color codes.
+     * Translates '&' color codes to Bukkit '§' codes.
      */
-    public static Component parseText(String raw) {
-        if (raw == null) return Component.empty();
-        // Convert legacy & codes first
-        String converted = raw.replace("&", "§");
-        // Then parse MiniMessage (handles hex <#RRGGBB> tags)
-        try {
-            return MiniMessage.miniMessage().deserialize(raw);
-        } catch (Exception e) {
-            // Fallback to legacy
-            return LegacyComponentSerializer.legacySection().deserialize(converted);
-        }
+    public static String colorize(String raw) {
+        if (raw == null) return "";
+        return raw.replace("&", "§");
     }
 }

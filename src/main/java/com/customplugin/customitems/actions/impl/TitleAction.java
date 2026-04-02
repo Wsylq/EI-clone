@@ -5,10 +5,7 @@ import com.customplugin.customitems.actions.ActionExecutor;
 import com.customplugin.customitems.model.ActionDefinition;
 import com.customplugin.customitems.model.ExecutionContext;
 import com.customplugin.customitems.util.TextUtil;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.title.Title;
-
-import java.time.Duration;
+import org.bukkit.entity.Player;
 
 /**
  * Displays a title/subtitle to the player.
@@ -31,22 +28,19 @@ public final class TitleAction implements ActionExecutor {
 
     @Override
     public void execute(ActionDefinition def, ExecutionContext context) {
+        Player player = context.getPlayer();
+
         String rawTitle    = TextUtil.resolvePlaceholders(def.getString("title", ""), context, plugin);
         String rawSubtitle = TextUtil.resolvePlaceholders(def.getString("subtitle", ""), context, plugin);
 
-        Component title    = TextUtil.parse(rawTitle);
-        Component subtitle = TextUtil.parse(rawSubtitle);
+        String title    = TextUtil.colorize(rawTitle);
+        String subtitle = TextUtil.colorize(rawSubtitle);
 
-        int fadeIn   = def.getInt("fade_in", 10);
-        int stay     = def.getInt("stay", 60);
-        int fadeOut  = def.getInt("fade_out", 10);
+        int fadeIn  = def.getInt("fade_in", 10);
+        int stay    = def.getInt("stay", 60);
+        int fadeOut = def.getInt("fade_out", 10);
 
-        Title.Times times = Title.Times.times(
-                Duration.ofMillis(fadeIn * 50L),
-                Duration.ofMillis(stay * 50L),
-                Duration.ofMillis(fadeOut * 50L)
-        );
-
-        context.getPlayer().showTitle(Title.title(title, subtitle, times));
+        // Use Bukkit's sendTitle (compatible with all Spigot/Paper versions)
+        player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
     }
 }

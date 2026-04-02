@@ -25,6 +25,7 @@ public final class MessageAction implements ActionExecutor {
     public void execute(ActionDefinition def, ExecutionContext context) {
         String raw = def.getString("message", "");
         String resolved = TextUtil.resolvePlaceholders(raw, context, plugin);
-        context.getPlayer().sendMessage(TextUtil.parse(resolved));
+        // Use String-based sendMessage (compatible with all Bukkit versions)
+        context.getPlayer().sendMessage(TextUtil.colorize(resolved));
     }
 }
