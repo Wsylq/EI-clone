@@ -1,16 +1,2 @@
 com\customplugin\customitems\CustomItemsPlugin.class
-com\customplugin\customitems\listeners\EntityDamageByEntityListener.class
 com\customplugin\customitems\config\ItemRegistry.class
-com\customplugin\customitems\listeners\PlayerInteractListener$1.class
-com\customplugin\customitems\listeners\PlayerDropItemListener.class
-com\customplugin\customitems\listeners\PlayerInteractListener.class
-com\customplugin\customitems\projectile\ProjectileManager$ProjectileEntry.class
-com\customplugin\customitems\listeners\ProjectileHitListener.class
-com\customplugin\customitems\listeners\PlayerSwapHandListener.class
-com\customplugin\customitems\hooks\VaultHook.class
-com\customplugin\customitems\hooks\PlaceholderAPIHook.class
-com\customplugin\customitems\listeners\PlayerItemConsumeListener.class
-com\customplugin\customitems\projectile\ProjectileManager.class
-com\customplugin\customitems\listeners\ListenerRegistry.class
-com\customplugin\customitems\data\DatabaseManager.class
-com\customplugin\customitems\cooldown\CooldownManager.class

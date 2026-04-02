@@ -8,7 +8,7 @@
 
     <!-- =====================================================================
          Project Coordinates
-    ====================================================================== -->
+    ===================================================================== -->
     <groupId>com.customplugin</groupId>
     <artifactId>CustomItems</artifactId>
     <version>1.0.0-SNAPSHOT</version>
@@ -29,13 +29,19 @@
         <spigot.version>1.20.4-R0.1-SNAPSHOT</spigot.version>
         <placeholderapi.version>2.11.5</placeholderapi.version>
         <vault.version>1.7.1</vault.version>
-        <sqlite.version>3.45.1.0</sqlite.version>
         <snakeyaml.version>2.2</snakeyaml.version>
+        <!--
+            sqlite-jdbc has been REMOVED.
+            DatabaseManager now uses plain Java serialization (no native libs needed).
+            This eliminates the UnsatisfiedLinkError that occurred when the sqlite-jdbc
+            native library was relocated via the Shade plugin — the native extractor
+            inside sqlite-jdbc cannot find itself under a remapped package name.
+        -->
     </properties>
 
     <!-- =====================================================================
          Repositories
-    ====================================================================== -->
+    ===================================================================== -->
     <repositories>
         <!-- Spigot / Bukkit -->
         <repository>
@@ -58,7 +64,7 @@
 
     <!-- =====================================================================
          Dependencies
-    ====================================================================== -->
+    ===================================================================== -->
     <dependencies>
 
         <!-- ── Bukkit / Spigot API ──────────────────────────────────────── -->
@@ -77,20 +83,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- ── Vault (optional soft-depend) ─────────────────────────────── -->
+        <!-- ── Vault (optional soft-depend) ────────────────────────────── -->
         <dependency>
             <groupId>com.github.MilkBowl</groupId>
             <artifactId>VaultAPI</artifactId>
             <version>${vault.version}</version>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- ── SQLite JDBC (bundled, for persistent cooldown storage) ───── -->
-        <dependency>
-            <groupId>org.xerial</groupId>
-            <artifactId>sqlite-jdbc</artifactId>
-            <version>${sqlite.version}</version>
-            <scope>compile</scope>
         </dependency>
 
         <!-- ── SnakeYAML (already on classpath via Bukkit, listed for IDE) ─ -->
@@ -105,7 +103,7 @@
 
     <!-- =====================================================================
          Build
-    ====================================================================== -->
+    ===================================================================== -->
     <build>
         <defaultGoal>clean package</defaultGoal>
         <!-- Output jar name: CustomItems-1.0.0-SNAPSHOT.jar -->
@@ -121,7 +119,7 @@
 
         <plugins>
 
-            <!-- ── Compiler plugin ─────────────────────────────────────── -->
+            <!-- ── Compiler plugin ───────────────────────────────────────── -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -133,7 +131,14 @@
                 </configuration>
             </plugin>
 
-            <!-- ── Shade plugin — bundle SQLite JDBC into the fat jar ──── -->
+            <!--
+                Shade plugin — kept for future use but sqlite-jdbc relocation
+                has been REMOVED because relocating the native library JAR
+                breaks NativeDB's self-extraction routine.
+
+                If you add new compile-scope dependencies in the future that
+                need bundling, add them here WITHOUT relocating sqlite-jdbc.
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -147,13 +152,7 @@
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <minimizeJar>false</minimizeJar>
-                            <relocations>
-                                <!-- Relocate SQLite to avoid conflicts with other plugins -->
-                                <relocation>
-                                    <pattern>org.sqlite</pattern>
-                                    <shadedPattern>com.customplugin.customitems.libs.sqlite</shadedPattern>
-                                </relocation>
-                            </relocations>
+                            <!-- No relocations needed — sqlite-jdbc removed -->
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
@@ -169,7 +168,7 @@
                 </executions>
             </plugin>
 
-            <!-- ── Surefire (unit tests, skipped by default for plugin dev) -->
+            <!-- ── Surefire plugin ───────────────────────────────────────── -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

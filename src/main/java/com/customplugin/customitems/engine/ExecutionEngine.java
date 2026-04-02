@@ -149,11 +149,9 @@ public final class ExecutionEngine {
     private void handleIf(ActionDefinition def, ExecutionContext context) {
         String condition = def.getString("condition", "");
         boolean passed = conditionEvaluator.evaluate(condition, context);
-
-        List<ActionDefinition> branch = passed
-                ? def.getActionList("then")
-                : def.getActionList("else");
-
+        // FIX: was def.getActionList("then") / def.getActionList("else") — method does not exist.
+        // ActionDefinition exposes getThenActions() and getElseActions() instead.
+        List<ActionDefinition> branch = passed ? def.getThenActions() : def.getElseActions();
         if (branch != null && !branch.isEmpty()) {
             executeActions(branch, context);
         }

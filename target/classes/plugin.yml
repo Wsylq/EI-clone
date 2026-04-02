@@ -1,0 +1,32 @@
+name: CustomItems
+version: 1.0.0-SNAPSHOT
+main: com.customplugin.customitems.CustomItemsPlugin
+description: A Minecraft Bukkit/Spigot plugin – ExecutableItems clone with custom item definitions, actions, conditions, cooldowns, and more.
+author: Wsylq
+website: https://github.com/Wsylq/EI-clone
+api-version: '1.20'
+
+soft-depend:
+  - PlaceholderAPI
+  - Vault
+
+commands:
+  ci:
+    description: CustomItems main command
+    usage: |-
+      /ci give <player> <item-id> [amount]
+      /ci reload
+      /ci list
+      /ci debug
+      /ci info <item-id>
+    aliases:
+      - customitems
+    permission: customitems.admin
+
+permissions:
+  customitems.admin:
+    description: Grants access to all CustomItems commands
+    default: op
+  customitems.use:
+    description: Allows players to trigger custom item activators
+    default: true

@@ -1,0 +1,22 @@
+# CustomItems Configuration
+# https://github.com/Wsylq/EI-clone
+
+# Enable or disable debug logging
+debug: false
+
+# Storage settings
+storage:
+  # Type of storage: sqlite (more types may be added later)
+  type: sqlite
+  # File name for SQLite database (relative to plugin data folder)
+  file: data/customitems.db
+
+# Cooldown settings
+cooldowns:
+  # Whether to persist cooldowns across server restarts (requires SQLite)
+  persistent: true
+
+# Item settings
+items:
+  # Directory (relative to plugin data folder) where item YAML files are stored
+  directory: items

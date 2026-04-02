@@ -3,23 +3,34 @@ package com.customplugin.customitems.data;
 import com.customplugin.customitems.CustomItemsPlugin;
 import org.bukkit.Bukkit;
 
-import java.io.File;
-import java.sql.*;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
- * Manages SQLite (default) or MySQL persistence.
+ * Manages persistent cooldown storage using a plain binary file.
  *
- * Tables:
- *   cooldowns  (cooldown_key TEXT PK, expiry_ms INTEGER)
+ * This replaces the original SQLite-based implementation which caused
+ * UnsatisfiedLinkError when sqlite-jdbc's native library was relocated
+ * via the Maven Shade plugin (the native extractor cannot find itself
+ * under the remapped package name).
+ *
+ * Storage format: Java serialized HashMap<String, Long> written to
+ *   plugins/CustomItems/data/cooldowns.dat
+ *
+ * All disk I/O is performed asynchronously so the main thread is never
+ * blocked.
  */
 public final class DatabaseManager {
 
     private final CustomItemsPlugin plugin;
-    private Connection connection;
-    private boolean useMysql;
+
+    /** In-memory store – always authoritative during runtime. */
+    private final ConcurrentHashMap<String, Long> cooldowns = new ConcurrentHashMap<>();
+
+    private File dataFile;
 
     public DatabaseManager(CustomItemsPlugin plugin) {
         this.plugin = plugin;
@@ -30,130 +41,134 @@ public final class DatabaseManager {
     // -------------------------------------------------------------------------
 
     public void initialize() throws Exception {
-        useMysql = plugin.getConfig().getBoolean("database.mysql.enabled", false);
-
-        if (useMysql) {
-            initMySQL();
-        } else {
-            initSQLite();
-        }
-
-        createTables();
-        plugin.getLogger().info("[CustomItems] Database initialized (" + (useMysql ? "MySQL" : "SQLite") + ").");
-    }
-
-    private void initSQLite() throws Exception {
         File dataDir = new File(plugin.getDataFolder(), "data");
-        dataDir.mkdirs();
-        File dbFile = new File(dataDir, "customitems.db");
-
-        Class.forName("org.sqlite.JDBC");
-        connection = DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
-
-        // WAL mode for better concurrent read performance
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("PRAGMA journal_mode=WAL;");
+        if (!dataDir.exists() && !dataDir.mkdirs()) {
+            throw new IOException("Could not create data directory: " + dataDir.getAbsolutePath());
         }
-    }
 
-    private void initMySQL() throws Exception {
-        String host     = plugin.getConfig().getString("database.mysql.host", "localhost");
-        int port        = plugin.getConfig().getInt("database.mysql.port", 3306);
-        String database = plugin.getConfig().getString("database.mysql.database", "customitems");
-        String username = plugin.getConfig().getString("database.mysql.username", "root");
-        String password = plugin.getConfig().getString("database.mysql.password", "");
+        dataFile = new File(dataDir, "cooldowns.dat");
 
-        String url = "jdbc:mysql://" + host + ":" + port + "/" + database
-                + "?useSSL=false&autoReconnect=true&characterEncoding=utf8";
+        // Load persisted cooldowns (prune expired ones immediately)
+        loadFromDisk();
 
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        connection = DriverManager.getConnection(url, username, password);
-    }
-
-    private void createTables() throws SQLException {
-        String createCooldowns = """
-                CREATE TABLE IF NOT EXISTS cooldowns (
-                    cooldown_key TEXT NOT NULL PRIMARY KEY,
-                    expiry_ms    INTEGER NOT NULL
-                );
-                """;
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(createCooldowns);
-        }
+        plugin.getLogger().info("[CustomItems] Database initialized (flat-file).");
     }
 
     // -------------------------------------------------------------------------
-    // Cooldown persistence
+    // Cooldown persistence (public API – mirrors the old SQLite API)
     // -------------------------------------------------------------------------
 
-    public void saveCooldownAsync(String key, long expiryMs) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try {
-                saveCooldown(key, expiryMs);
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "[CustomItems] Failed to save cooldown: " + key, e);
-            }
-        });
+    /**
+     * Persists a cooldown entry asynchronously.
+     *
+     * @param key      composite cooldown key (e.g. "playerUUID:itemId:trigger")
+     * @param expiryMs absolute expiry timestamp in milliseconds
+     */
+    public void saveCooldDownAsync(String key, long expiryMs) {
+        cooldowns.put(key, expiryMs);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::saveToDisk);
     }
 
-    private void saveCooldown(String key, long expiryMs) throws SQLException {
-        String sql = "INSERT OR REPLACE INTO cooldowns (cooldown_key, expiry_ms) VALUES (?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, key);
-            ps.setLong(2, expiryMs);
-            ps.executeUpdate();
-        }
-    }
-
+    /**
+     * Returns all cooldowns that have not yet expired.
+     *
+     * @return mutable map of key → expiry-ms
+     */
     public Map<String, Long> loadAllCooldowns() {
-        Map<String, Long> result = new HashMap<>();
-        String sql = "SELECT cooldown_key, expiry_ms FROM cooldowns WHERE expiry_ms > ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setLong(1, System.currentTimeMillis());
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                result.put(rs.getString("cooldown_key"), rs.getLong("expiry_ms"));
+        long now = System.currentTimeMillis();
+        Map<String, Long> active = new HashMap<>();
+        for (Map.Entry<String, Long> entry : cooldowns.entrySet()) {
+            if (entry.getValue() > now) {
+                active.put(entry.getKey(), entry.getValue());
             }
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "[CustomItems] Failed to load cooldowns.", e);
         }
-        return result;
+        return active;
     }
 
-    public void deleteCooldown(String key) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try {
-                String sql = "DELETE FROM cooldowns WHERE cooldown_key = ?";
-                try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                    ps.setString(1, key);
-                    ps.executeUpdate();
-                }
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "[CustomItems] Failed to delete cooldown: " + key, e);
-            }
-        });
+    /**
+     * Removes a cooldown entry asynchronously.
+     *
+     * @param key the cooldown key to remove
+     */
+    public void deleteCooldDown(String key) {
+        cooldowns.remove(key);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::saveToDisk);
     }
 
     // -------------------------------------------------------------------------
     // Lifecycle
     // -------------------------------------------------------------------------
 
+    /**
+     * Flush all cooldowns to disk synchronously.
+     * Called from {@code onDisable()} on the main thread after all async
+     * tasks have had a chance to complete.
+     */
     public void close() {
-        if (connection != null) {
-            try {
-                connection.close();
-                plugin.getLogger().info("[CustomItems] Database connection closed.");
-            } catch (SQLException e) {
-                plugin.getLogger().log(Level.WARNING, "[CustomItems] Error closing database.", e);
+        saveToDisk();
+        plugin.getLogger().info("[CustomItems] Database connection closed.");
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal disk I/O
+    // -------------------------------------------------------------------------
+
+    @SuppressWarnings("unchecked")
+    private void loadFromDisk() {
+        if (dataFile == null || !dataFile.exists()) {
+            return;
+        }
+
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+            Object obj = ois.readObject();
+            if (obj instanceof Map<?, ?> raw) {
+                long now = System.currentTimeMillis();
+                for (Map.Entry<?, ?> entry : raw.entrySet()) {
+                    if (entry.getKey() instanceof String key
+                            && entry.getValue() instanceof Long expiry
+                            && expiry > now) {
+                        cooldowns.put(key, expiry);
+                    }
+                }
             }
+        } catch (EOFException | FileNotFoundException ignored) {
+            // Empty / missing file – perfectly normal on first run
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING,
+                    "[CustomItems] Could not load cooldowns.dat – starting fresh.", e);
         }
     }
 
-    public boolean isConnected() {
-        try {
-            return connection != null && !connection.isClosed();
-        } catch (SQLException e) {
-            return false;
+    private void saveToDisk() {
+        if (dataFile == null) return;
+
+        // Snapshot only the non-expired entries
+        long now = System.currentTimeMillis();
+        HashMap<String, Long> snapshot = new HashMap<>();
+        for (Map.Entry<String, Long> entry : cooldowns.entrySet()) {
+            if (entry.getValue() > now) {
+                snapshot.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        File tmp = new File(dataFile.getParent(), "cooldowns.tmp");
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tmp))) {
+            oos.writeObject(snapshot);
+            oos.flush();
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.WARNING,
+                    "[CustomItems] Failed to write cooldowns.tmp.", e);
+            tmp.delete();
+            return;
+        }
+
+        // Atomic rename so we never corrupt the file on a partial write
+        if (dataFile.exists()) {
+            dataFile.delete();
+        }
+        if (!tmp.renameTo(dataFile)) {
+            plugin.getLogger().warning(
+                    "[CustomItems] Could not rename cooldowns.tmp → cooldowns.dat.");
         }
     }
 }
