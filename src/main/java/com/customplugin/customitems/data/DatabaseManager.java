@@ -27,7 +27,7 @@ public final class DatabaseManager {
 
     private final CustomItemsPlugin plugin;
 
-    /** In-memory store – always authoritative during runtime. */
+    /** In-memory store — always authoritative during runtime. */
     private final ConcurrentHashMap<String, Long> cooldowns = new ConcurrentHashMap<>();
 
     private File dataFile;
@@ -36,9 +36,9 @@ public final class DatabaseManager {
         this.plugin = plugin;
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Initialization
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     public void initialize() throws Exception {
         File dataDir = new File(plugin.getDataFolder(), "data");
@@ -54,9 +54,9 @@ public final class DatabaseManager {
         plugin.getLogger().info("[CustomItems] Database initialized (flat-file).");
     }
 
-    // -------------------------------------------------------------------------
-    // Cooldown persistence (public API – mirrors the old SQLite API)
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
+    // Cooldown persistence (public API — mirrors the old SQLite API)
+    // ---------------------------------------------------------------------------
 
     /**
      * Persists a cooldown entry asynchronously.
@@ -64,7 +64,7 @@ public final class DatabaseManager {
      * @param key      composite cooldown key (e.g. "playerUUID:itemId:trigger")
      * @param expiryMs absolute expiry timestamp in milliseconds
      */
-    public void saveCooldDownAsync(String key, long expiryMs) {
+    public void saveCooldownAsync(String key, long expiryMs) {
         cooldowns.put(key, expiryMs);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, this::saveToDisk);
     }
@@ -90,14 +90,14 @@ public final class DatabaseManager {
      *
      * @param key the cooldown key to remove
      */
-    public void deleteCooldDown(String key) {
+    public void deleteCooldown(String key) {
         cooldowns.remove(key);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, this::saveToDisk);
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Lifecycle
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     /**
      * Flush all cooldowns to disk synchronously.
@@ -109,9 +109,9 @@ public final class DatabaseManager {
         plugin.getLogger().info("[CustomItems] Database connection closed.");
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // Internal disk I/O
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
 
     @SuppressWarnings("unchecked")
     private void loadFromDisk() {
@@ -132,10 +132,10 @@ public final class DatabaseManager {
                 }
             }
         } catch (EOFException | FileNotFoundException ignored) {
-            // Empty / missing file – perfectly normal on first run
+            // Empty / missing file — perfectly normal on first run
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING,
-                    "[CustomItems] Could not load cooldowns.dat – starting fresh.", e);
+                    "[CustomItems] Could not load cooldowns.dat — starting fresh.", e);
         }
     }
 
@@ -151,24 +151,11 @@ public final class DatabaseManager {
             }
         }
 
-        File tmp = new File(dataFile.getParent(), "cooldowns.tmp");
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tmp))) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
             oos.writeObject(snapshot);
-            oos.flush();
         } catch (IOException e) {
             plugin.getLogger().log(Level.WARNING,
-                    "[CustomItems] Failed to write cooldowns.tmp.", e);
-            tmp.delete();
-            return;
-        }
-
-        // Atomic rename so we never corrupt the file on a partial write
-        if (dataFile.exists()) {
-            dataFile.delete();
-        }
-        if (!tmp.renameTo(dataFile)) {
-            plugin.getLogger().warning(
-                    "[CustomItems] Could not rename cooldowns.tmp → cooldowns.dat.");
+                    "[CustomItems] Could not save cooldowns.dat.", e);
         }
     }
 }
